@@ -43,7 +43,6 @@ class Item:
         self.weight = weight
         self._volume = width * height * depth
 
-        # Precompute unique orientations
         dims = [width, height, depth]
         orientations = []
         import itertools
