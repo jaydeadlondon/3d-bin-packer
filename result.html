@@ -1,0 +1,2726 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>3D Bin Packing Visualizer</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #1e1e24;
+        color: #f5f5f7;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        user-select: none;
+      }
+      h1 {
+        margin-top: 0;
+        color: #61afef;
+        font-size: 24px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      .container {
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
+        width: 100%;
+        max-width: 1100px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .canvas-card {
+        background-color: #282c34;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        min-width: 500px;
+      }
+      .controls-card {
+        background-color: #21252b;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+      canvas {
+        background-color: #1a1c23;
+        border-radius: 8px;
+        border: 1px solid #3e4451;
+        cursor: move;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+      }
+      .stat-box {
+        background-color: #2b303c;
+        padding: 10px;
+        border-radius: 6px;
+        text-align: center;
+        border-left: 4px solid #61afef;
+      }
+      .stat-val {
+        font-size: 18px;
+        font-weight: bold;
+        color: #98c379;
+      }
+      .stat-lbl {
+        font-size: 11px;
+        color: #abb2bf;
+        margin-top: 2px;
+      }
+      button {
+        background-color: #4b5263;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+      }
+      button:hover {
+        background-color: #61afef;
+        transform: translateY(-1px);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      .btn-primary {
+        background-color: #3e88e3;
+      }
+      .btn-primary:hover {
+        background-color: #529bf7;
+      }
+      .button-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .slider-container {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .slider-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: #61afef;
+        cursor: pointer;
+      }
+      .item-list-container {
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: #1a1c23;
+        border-radius: 6px;
+        padding: 8px;
+        border: 1px solid #3e4451;
+      }
+      .item-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        padding: 4px 6px;
+        border-bottom: 1px solid #282c34;
+      }
+      .item-row:hover {
+        background-color: #2b303c;
+      }
+      .badge {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-weight: bold;
+      }
+      .badge-fit {
+        background-color: #2e7d32;
+        color: #e8f5e9;
+      }
+      .badge-unfit {
+        background-color: #c62828;
+        color: #ffebee;
+      }
+
+      /* Tooltip style */
+      .tooltip {
+        background-color: rgba(0, 0, 0, 0.85);
+        border: 1px solid #61afef;
+        border-radius: 4px;
+        padding: 8px;
+        position: absolute;
+        pointer-events: none;
+        display: none;
+        font-size: 12px;
+        z-index: 100;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      }
+
+      .legend {
+        display: flex;
+        gap: 12px;
+        font-size: 11px;
+        margin-top: 10px;
+        color: #abb2bf;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📦 Изометрический 3D Оптимизатор Упаковки</h1>
+
+    <div class="container">
+      <!-- Canvas Card -->
+      <div class="canvas-card">
+        <canvas id="isometricCanvas" width="550" height="420"></canvas>
+
+        <div class="legend">
+          <div class="legend-item">
+            <div
+              class="legend-color"
+              style="
+                background-color: rgba(97, 175, 239, 0.2);
+                border: 1px solid #61afef;
+              "
+            ></div>
+            <span>Контейнер</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #98c379"></div>
+            <span>Коробка (упакована)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #e06c75"></div>
+            <span>Текущая коробка</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls Card -->
+      <div class="controls-card">
+        <h3>Статистика контейнера</h3>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-val" id="statEfficiency">0.0%</div>
+            <div class="stat-lbl">Заполнение</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="statCount">0 / 0</div>
+            <div class="stat-lbl">Коробок уложено</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="statVolume">0 м³</div>
+            <div class="stat-lbl">Объём упакован</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="statWeight">0 кг</div>
+            <div class="stat-lbl">Общий вес</div>
+          </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #3e4451; width: 100%" />
+
+        <div class="slider-container">
+          <div class="slider-header">
+            <span>Шаг сборки:</span>
+            <span id="stepCounter" style="font-weight: bold; color: #61afef"
+              >0 / 0</span
+            >
+          </div>
+          <input type="range" id="stepSlider" min="0" max="0" value="0" />
+        </div>
+
+        <div class="button-group">
+          <button id="btnPrev" title="Назад">◀ Шаг назад</button>
+          <button id="btnNext" title="Вперед">Шаг вперед ▶</button>
+          <button id="btnPlay" class="btn-primary" style="grid-column: span 2">
+            ▶ Авто-сборка
+          </button>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #3e4451; width: 100%" />
+
+        <div class="slider-container">
+          <div class="slider-header">
+            <span>Угол обзора (Камера):</span>
+            <span id="angleValue">45°</span>
+          </div>
+          <input
+            type="range"
+            id="cameraAngleSlider"
+            min="0"
+            max="360"
+            value="45"
+          />
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-header">
+            <span>Прозрачность (X-Ray):</span>
+          </div>
+          <input
+            type="range"
+            id="opacitySlider"
+            min="10"
+            max="100"
+            value="85"
+          />
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-header">
+            <span>Список коробок:</span>
+          </div>
+          <div class="item-list-container" id="itemList">
+            <!-- Dynamic List -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tooltip" id="canvasTooltip"></div>
+
+    <script>
+      // --- DATA SECTION ---
+      // This variable is populated by Python, or uses default demo data if opened standalone.
+      let packingData = {
+        container_dimensions: { W: 10, H: 10, D: 10 },
+        max_weight: 500,
+        packed_volume_percentage: 37.0,
+        total_items: 8,
+        packed_items: [
+          {
+            name: "Box_0",
+            position: { x: 0, y: 0, z: 0 },
+            dimensions: { w: 5, h: 5, d: 4 },
+            weight: 25,
+          },
+          {
+            name: "Box_1",
+            position: { x: 5, y: 0, z: 0 },
+            dimensions: { w: 5, h: 4, d: 4 },
+            weight: 20,
+          },
+          {
+            name: "Box_2",
+            position: { x: 0, y: 5, z: 0 },
+            dimensions: { w: 4, h: 5, d: 3 },
+            weight: 15,
+          },
+          {
+            name: "Box_3",
+            position: { x: 5, y: 4, z: 0 },
+            dimensions: { w: 5, h: 6, d: 2 },
+            weight: 30,
+          },
+          {
+            name: "Box_4",
+            position: { x: 0, y: 0, z: 4 },
+            dimensions: { w: 4, h: 4, d: 4 },
+            weight: 16,
+          },
+          {
+            name: "Box_5",
+            position: { x: 4, y: 0, z: 4 },
+            dimensions: { w: 6, h: 3, d: 3 },
+            weight: 18,
+          },
+          {
+            name: "Box_6",
+            position: { x: 0, y: 4, z: 3 },
+            dimensions: { w: 3, h: 3, d: 3 },
+            weight: 9,
+          },
+          {
+            name: "Box_7",
+            position: { x: 3, y: 5, z: 3 },
+            dimensions: { w: 4, h: 4, d: 4 },
+            weight: 22,
+          },
+        ],
+        unpacked_items: [
+          { name: "Box_Unfit_1", dimensions: { w: 8, h: 8, d: 8 }, weight: 80 },
+        ],
+      };
+
+      // Attempt to load dynamic data injected by Python
+      packingData = {
+        container_dimensions: {
+          W: 15.0,
+          H: 15.0,
+          D: 15.0,
+        },
+        max_weight: 200000.0,
+        packed_volume_percentage: 96.47407407407408,
+        total_items: 97,
+        packed_items: [
+          {
+            name: "Box_017",
+            position: {
+              x: 0.0,
+              y: 0.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 6,
+              h: 5,
+              d: 4,
+            },
+            weight: 1082.0,
+          },
+          {
+            name: "Box_134",
+            position: {
+              x: 6.0,
+              y: 0.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 6,
+              h: 5,
+              d: 4,
+            },
+            weight: 1266.6,
+          },
+          {
+            name: "Box_136",
+            position: {
+              x: 0.0,
+              y: 5.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 6,
+              h: 5,
+              d: 4,
+            },
+            weight: 1100.1,
+          },
+          {
+            name: "Box_002",
+            position: {
+              x: 6.0,
+              y: 5.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 5,
+              d: 4,
+            },
+            weight: 1120.0,
+          },
+          {
+            name: "Box_108",
+            position: {
+              x: 12.0,
+              y: 0.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 6,
+              d: 5,
+            },
+            weight: 799.7,
+          },
+          {
+            name: "Box_128",
+            position: {
+              x: 12.0,
+              y: 6.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 6,
+              d: 5,
+            },
+            weight: 1021.6,
+          },
+          {
+            name: "Box_011",
+            position: {
+              x: 0.0,
+              y: 10.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 5,
+              d: 4,
+            },
+            weight: 935.1,
+          },
+          {
+            name: "Box_014",
+            position: {
+              x: 4.0,
+              y: 10.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 4,
+            },
+            weight: 858.2,
+          },
+          {
+            name: "Box_061",
+            position: {
+              x: 0.0,
+              y: 0.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 5,
+              d: 4,
+            },
+            weight: 643.5,
+          },
+          {
+            name: "Box_121",
+            position: {
+              x: 4.0,
+              y: 0.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 4,
+            },
+            weight: 742.6,
+          },
+          {
+            name: "Box_144",
+            position: {
+              x: 4.0,
+              y: 4.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 4,
+            },
+            weight: 879.4,
+          },
+          {
+            name: "Box_015",
+            position: {
+              x: 9.0,
+              y: 10.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 5,
+              d: 5,
+            },
+            weight: 828.5,
+          },
+          {
+            name: "Box_115",
+            position: {
+              x: 9.0,
+              y: 0.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 6,
+              d: 4,
+            },
+            weight: 579.3,
+          },
+          {
+            name: "Box_021",
+            position: {
+              x: 0.0,
+              y: 5.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 5,
+              d: 3,
+            },
+            weight: 483.0,
+          },
+          {
+            name: "Box_052",
+            position: {
+              x: 9.0,
+              y: 6.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 5,
+            },
+            weight: 252.5,
+          },
+          {
+            name: "Box_073",
+            position: {
+              x: 4.0,
+              y: 8.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 3,
+              d: 4,
+            },
+            weight: 522.2,
+          },
+          {
+            name: "Box_079",
+            position: {
+              x: 0.0,
+              y: 10.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 5,
+              d: 3,
+            },
+            weight: 326.5,
+          },
+          {
+            name: "Box_105",
+            position: {
+              x: 4.0,
+              y: 11.0,
+              z: 4.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 3,
+            },
+            weight: 333.4,
+          },
+          {
+            name: "Box_111",
+            position: {
+              x: 12.0,
+              y: 0.0,
+              z: 5.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 5,
+              d: 4,
+            },
+            weight: 577.9,
+          },
+          {
+            name: "Box_120",
+            position: {
+              x: 12.0,
+              y: 5.0,
+              z: 5.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 5,
+              d: 4,
+            },
+            weight: 550.9,
+          },
+          {
+            name: "Box_126",
+            position: {
+              x: 9.0,
+              y: 10.0,
+              z: 5.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 3,
+            },
+            weight: 551.9,
+          },
+          {
+            name: "Box_031",
+            position: {
+              x: 0.0,
+              y: 5.0,
+              z: 7.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 5,
+              d: 5,
+            },
+            weight: 565.3,
+          },
+          {
+            name: "Box_101",
+            position: {
+              x: 2.0,
+              y: 5.0,
+              z: 7.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 5,
+              d: 5,
+            },
+            weight: 405.0,
+          },
+          {
+            name: "Box_025",
+            position: {
+              x: 0.0,
+              y: 10.0,
+              z: 7.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 6,
+            },
+            weight: 469.5,
+          },
+          {
+            name: "Box_029",
+            position: {
+              x: 2.0,
+              y: 10.0,
+              z: 7.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 6,
+            },
+            weight: 465.9,
+          },
+          {
+            name: "Box_038",
+            position: {
+              x: 4.0,
+              y: 11.0,
+              z: 7.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 6,
+            },
+            weight: 531.9,
+          },
+          {
+            name: "Box_040",
+            position: {
+              x: 6.0,
+              y: 11.0,
+              z: 7.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 4,
+            },
+            weight: 384.6,
+          },
+          {
+            name: "Box_041",
+            position: {
+              x: 0.0,
+              y: 0.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 4,
+            },
+            weight: 460.1,
+          },
+          {
+            name: "Box_065",
+            position: {
+              x: 3.0,
+              y: 0.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 3,
+              d: 4,
+            },
+            weight: 465.4,
+          },
+          {
+            name: "Box_074",
+            position: {
+              x: 7.0,
+              y: 0.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 6,
+              d: 4,
+            },
+            weight: 451.7,
+          },
+          {
+            name: "Box_087",
+            position: {
+              x: 9.0,
+              y: 0.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 4,
+            },
+            weight: 527.2,
+          },
+          {
+            name: "Box_090",
+            position: {
+              x: 4.0,
+              y: 4.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 4,
+            },
+            weight: 465.3,
+          },
+          {
+            name: "Box_091",
+            position: {
+              x: 4.0,
+              y: 8.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 3,
+              d: 4,
+            },
+            weight: 245.1,
+          },
+          {
+            name: "Box_113",
+            position: {
+              x: 9.0,
+              y: 10.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 4,
+            },
+            weight: 510.4,
+          },
+          {
+            name: "Box_125",
+            position: {
+              x: 12.0,
+              y: 10.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 4,
+            },
+            weight: 554.4,
+          },
+          {
+            name: "Box_129",
+            position: {
+              x: 12.0,
+              y: 0.0,
+              z: 9.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 6,
+              d: 4,
+            },
+            weight: 484.8,
+          },
+          {
+            name: "Box_069",
+            position: {
+              x: 12.0,
+              y: 12.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 5,
+            },
+            weight: 361.3,
+          },
+          {
+            name: "Box_097",
+            position: {
+              x: 9.0,
+              y: 6.0,
+              z: 9.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 5,
+            },
+            weight: 533.9,
+          },
+          {
+            name: "Box_099",
+            position: {
+              x: 12.0,
+              y: 6.0,
+              z: 9.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 5,
+            },
+            weight: 448.1,
+          },
+          {
+            name: "Box_146",
+            position: {
+              x: 0.0,
+              y: 0.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 3,
+              d: 3,
+            },
+            weight: 367.0,
+          },
+          {
+            name: "Box_042",
+            position: {
+              x: 5.0,
+              y: 0.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 2,
+            },
+            weight: 175.6,
+          },
+          {
+            name: "Box_047",
+            position: {
+              x: 0.0,
+              y: 3.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 2,
+            },
+            weight: 228.9,
+          },
+          {
+            name: "Box_049",
+            position: {
+              x: 5.0,
+              y: 4.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 5,
+              d: 2,
+            },
+            weight: 430.2,
+          },
+          {
+            name: "Box_059",
+            position: {
+              x: 9.0,
+              y: 10.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 2,
+            },
+            weight: 404.1,
+          },
+          {
+            name: "Box_076",
+            position: {
+              x: 0.0,
+              y: 10.0,
+              z: 13.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 5,
+              d: 2,
+            },
+            weight: 394.6,
+          },
+          {
+            name: "Box_008",
+            position: {
+              x: 6.0,
+              y: 11.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 3,
+            },
+            weight: 152.9,
+          },
+          {
+            name: "Box_012",
+            position: {
+              x: 0.0,
+              y: 7.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 3,
+              d: 3,
+            },
+            weight: 198.5,
+          },
+          {
+            name: "Box_072",
+            position: {
+              x: 9.0,
+              y: 4.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 5,
+            },
+            weight: 140.0,
+          },
+          {
+            name: "Box_080",
+            position: {
+              x: 12.0,
+              y: 0.0,
+              z: 13.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 5,
+              d: 2,
+            },
+            weight: 129.4,
+          },
+          {
+            name: "Box_003",
+            position: {
+              x: 10.0,
+              y: 0.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 3,
+            },
+            weight: 235.8,
+          },
+          {
+            name: "Box_010",
+            position: {
+              x: 5.0,
+              y: 9.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 2,
+              d: 3,
+            },
+            weight: 272.8,
+          },
+          {
+            name: "Box_085",
+            position: {
+              x: 11.0,
+              y: 5.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 5,
+              d: 4,
+            },
+            weight: 103.8,
+          },
+          {
+            name: "Box_032",
+            position: {
+              x: 7.0,
+              y: 6.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 2,
+              d: 4,
+            },
+            weight: 95.4,
+          },
+          {
+            name: "Box_033",
+            position: {
+              x: 4.0,
+              y: 14.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 4,
+              h: 1,
+              d: 4,
+            },
+            weight: 70.1,
+          },
+          {
+            name: "Box_045",
+            position: {
+              x: 4.0,
+              y: 11.0,
+              z: 13.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 2,
+            },
+            weight: 68.0,
+          },
+          {
+            name: "Box_124",
+            position: {
+              x: 14.0,
+              y: 10.0,
+              z: 5.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 5,
+              d: 3,
+            },
+            weight: 72.1,
+          },
+          {
+            name: "Box_007",
+            position: {
+              x: 9.0,
+              y: 4.0,
+              z: 13.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 2,
+            },
+            weight: 21.8,
+          },
+          {
+            name: "Box_004",
+            position: {
+              x: 9.0,
+              y: 14.0,
+              z: 5.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 3,
+            },
+            weight: 16.8,
+          },
+          {
+            name: "Box_013",
+            position: {
+              x: 0.0,
+              y: 14.0,
+              z: 7.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 3,
+            },
+            weight: 18.9,
+          },
+          {
+            name: "Box_039",
+            position: {
+              x: 3.0,
+              y: 3.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 3,
+            },
+            weight: 20.5,
+          },
+          {
+            name: "Box_046",
+            position: {
+              x: 0.0,
+              y: 4.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 3,
+            },
+            weight: 14.7,
+          },
+          {
+            name: "Box_051",
+            position: {
+              x: 8.0,
+              y: 8.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 3,
+              d: 3,
+            },
+            weight: 15.5,
+          },
+          {
+            name: "Box_107",
+            position: {
+              x: 9.0,
+              y: 14.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 3,
+            },
+            weight: 14.8,
+          },
+          {
+            name: "Box_019",
+            position: {
+              x: 12.0,
+              y: 14.0,
+              z: 5.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 4,
+            },
+            weight: 44.5,
+          },
+          {
+            name: "Box_036",
+            position: {
+              x: 14.0,
+              y: 0.0,
+              z: 9.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 2,
+              d: 4,
+            },
+            weight: 35.5,
+          },
+          {
+            name: "Box_122",
+            position: {
+              x: 14.0,
+              y: 2.0,
+              z: 9.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 4,
+              d: 2,
+            },
+            weight: 42.7,
+          },
+          {
+            name: "Box_005",
+            position: {
+              x: 9.0,
+              y: 9.0,
+              z: 9.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 2,
+            },
+            weight: 26.3,
+          },
+          {
+            name: "Box_009",
+            position: {
+              x: 12.0,
+              y: 9.0,
+              z: 9.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 2,
+            },
+            weight: 13.3,
+          },
+          {
+            name: "Box_022",
+            position: {
+              x: 12.0,
+              y: 14.0,
+              z: 9.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 3,
+            },
+            weight: 10.2,
+          },
+          {
+            name: "Box_055",
+            position: {
+              x: 0.0,
+              y: 14.0,
+              z: 10.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 2,
+            },
+            weight: 26.7,
+          },
+          {
+            name: "Box_058",
+            position: {
+              x: 14.0,
+              y: 2.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 3,
+              d: 2,
+            },
+            weight: 13.7,
+          },
+          {
+            name: "Box_066",
+            position: {
+              x: 9.0,
+              y: 9.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 3,
+            },
+            weight: 11.1,
+          },
+          {
+            name: "Box_067",
+            position: {
+              x: 11.0,
+              y: 9.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 2,
+            },
+            weight: 14.1,
+          },
+          {
+            name: "Box_081",
+            position: {
+              x: 9.0,
+              y: 14.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 2,
+            },
+            weight: 12.0,
+          },
+          {
+            name: "Box_089",
+            position: {
+              x: 4.0,
+              y: 7.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 2,
+              d: 3,
+            },
+            weight: 13.1,
+          },
+          {
+            name: "Box_095",
+            position: {
+              x: 4.0,
+              y: 9.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 2,
+              d: 3,
+            },
+            weight: 11.5,
+          },
+          {
+            name: "Box_123",
+            position: {
+              x: 14.0,
+              y: 10.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 3,
+              d: 2,
+            },
+            weight: 28.0,
+          },
+          {
+            name: "Box_135",
+            position: {
+              x: 14.0,
+              y: 13.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 2,
+              d: 3,
+            },
+            weight: 28.0,
+          },
+          {
+            name: "Box_142",
+            position: {
+              x: 12.0,
+              y: 14.0,
+              z: 12.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 3,
+            },
+            weight: 9.8,
+          },
+          {
+            name: "Box_145",
+            position: {
+              x: 12.0,
+              y: 5.0,
+              z: 13.0,
+            },
+            dimensions: {
+              w: 3,
+              h: 1,
+              d: 2,
+            },
+            weight: 11.9,
+          },
+          {
+            name: "Box_001",
+            position: {
+              x: 11.0,
+              y: 9.0,
+              z: 13.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 2,
+            },
+            weight: 8.7,
+          },
+          {
+            name: "Box_034",
+            position: {
+              x: 13.0,
+              y: 9.0,
+              z: 13.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 2,
+            },
+            weight: 7.3,
+          },
+          {
+            name: "Box_062",
+            position: {
+              x: 9.0,
+              y: 14.0,
+              z: 13.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 2,
+            },
+            weight: 8.4,
+          },
+          {
+            name: "Box_098",
+            position: {
+              x: 5.0,
+              y: 0.0,
+              z: 14.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 2,
+              d: 1,
+            },
+            weight: 7.8,
+          },
+          {
+            name: "Box_112",
+            position: {
+              x: 7.0,
+              y: 0.0,
+              z: 14.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 2,
+              d: 1,
+            },
+            weight: 6.4,
+          },
+          {
+            name: "Box_056",
+            position: {
+              x: 8.0,
+              y: 14.0,
+              z: 0.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 1,
+              d: 3,
+            },
+            weight: 5.9,
+          },
+          {
+            name: "Box_060",
+            position: {
+              x: 3.0,
+              y: 14.0,
+              z: 7.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 1,
+              d: 3,
+            },
+            weight: 7.0,
+          },
+          {
+            name: "Box_068",
+            position: {
+              x: 6.0,
+              y: 3.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 1,
+              d: 3,
+            },
+            weight: 5.9,
+          },
+          {
+            name: "Box_109",
+            position: {
+              x: 3.0,
+              y: 4.0,
+              z: 8.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 1,
+              d: 3,
+            },
+            weight: 5.7,
+          },
+          {
+            name: "Box_133",
+            position: {
+              x: 3.0,
+              y: 14.0,
+              z: 10.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 1,
+              d: 3,
+            },
+            weight: 6.5,
+          },
+          {
+            name: "Box_026",
+            position: {
+              x: 3.0,
+              y: 3.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 1,
+            },
+            weight: 4.7,
+          },
+          {
+            name: "Box_028",
+            position: {
+              x: 5.0,
+              y: 3.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 1,
+            },
+            weight: 4.3,
+          },
+          {
+            name: "Box_048",
+            position: {
+              x: 0.0,
+              y: 4.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 1,
+            },
+            weight: 3.9,
+          },
+          {
+            name: "Box_078",
+            position: {
+              x: 2.0,
+              y: 4.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 2,
+              h: 1,
+              d: 1,
+            },
+            weight: 4.7,
+          },
+          {
+            name: "Box_093",
+            position: {
+              x: 14.0,
+              y: 5.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 1,
+              d: 2,
+            },
+            weight: 4.2,
+          },
+          {
+            name: "Box_103",
+            position: {
+              x: 8.0,
+              y: 8.0,
+              z: 11.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 2,
+              d: 1,
+            },
+            weight: 4.5,
+          },
+          {
+            name: "Box_027",
+            position: {
+              x: 8.0,
+              y: 14.0,
+              z: 3.0,
+            },
+            dimensions: {
+              w: 1,
+              h: 1,
+              d: 1,
+            },
+            weight: 1.8,
+          },
+        ],
+        unpacked_items: [
+          {
+            name: "Box_100",
+            dimensions: {
+              w: 4,
+              h: 5,
+              d: 2,
+            },
+            weight: 352.8,
+          },
+          {
+            name: "Box_127",
+            dimensions: {
+              w: 5,
+              h: 4,
+              d: 2,
+            },
+            weight: 446.5,
+          },
+          {
+            name: "Box_104",
+            dimensions: {
+              w: 4,
+              h: 3,
+              d: 3,
+            },
+            weight: 205.5,
+          },
+          {
+            name: "Box_006",
+            dimensions: {
+              w: 4,
+              h: 4,
+              d: 2,
+            },
+            weight: 189.7,
+          },
+          {
+            name: "Box_030",
+            dimensions: {
+              w: 4,
+              h: 4,
+              d: 2,
+            },
+            weight: 161.5,
+          },
+          {
+            name: "Box_064",
+            dimensions: {
+              w: 4,
+              h: 4,
+              d: 2,
+            },
+            weight: 276.0,
+          },
+          {
+            name: "Box_086",
+            dimensions: {
+              w: 4,
+              h: 4,
+              d: 2,
+            },
+            weight: 185.0,
+          },
+          {
+            name: "Box_117",
+            dimensions: {
+              w: 4,
+              h: 4,
+              d: 2,
+            },
+            weight: 261.1,
+          },
+          {
+            name: "Box_149",
+            dimensions: {
+              w: 4,
+              h: 4,
+              d: 2,
+            },
+            weight: 265.1,
+          },
+          {
+            name: "Box_114",
+            dimensions: {
+              w: 5,
+              h: 3,
+              d: 2,
+            },
+            weight: 128.3,
+          },
+          {
+            name: "Box_131",
+            dimensions: {
+              w: 5,
+              h: 2,
+              d: 3,
+            },
+            weight: 131.0,
+          },
+          {
+            name: "Box_043",
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 3,
+            },
+            weight: 63.2,
+          },
+          {
+            name: "Box_130",
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 3,
+            },
+            weight: 122.9,
+          },
+          {
+            name: "Box_139",
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 3,
+            },
+            weight: 59.4,
+          },
+          {
+            name: "Box_023",
+            dimensions: {
+              w: 4,
+              h: 2,
+              d: 3,
+            },
+            weight: 261.6,
+          },
+          {
+            name: "Box_037",
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 4,
+            },
+            weight: 225.9,
+          },
+          {
+            name: "Box_050",
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 3,
+            },
+            weight: 136.2,
+          },
+          {
+            name: "Box_053",
+            dimensions: {
+              w: 4,
+              h: 2,
+              d: 3,
+            },
+            weight: 139.9,
+          },
+          {
+            name: "Box_054",
+            dimensions: {
+              w: 4,
+              h: 2,
+              d: 3,
+            },
+            weight: 132.9,
+          },
+          {
+            name: "Box_083",
+            dimensions: {
+              w: 4,
+              h: 3,
+              d: 2,
+            },
+            weight: 215.6,
+          },
+          {
+            name: "Box_094",
+            dimensions: {
+              w: 4,
+              h: 2,
+              d: 3,
+            },
+            weight: 250.8,
+          },
+          {
+            name: "Box_096",
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 2,
+            },
+            weight: 136.3,
+          },
+          {
+            name: "Box_102",
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 3,
+            },
+            weight: 123.7,
+          },
+          {
+            name: "Box_106",
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 3,
+            },
+            weight: 143.8,
+          },
+          {
+            name: "Box_110",
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 2,
+            },
+            weight: 140.9,
+          },
+          {
+            name: "Box_141",
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 2,
+            },
+            weight: 250.7,
+          },
+          {
+            name: "Box_143",
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 3,
+            },
+            weight: 127.2,
+          },
+          {
+            name: "Box_150",
+            dimensions: {
+              w: 3,
+              h: 4,
+              d: 2,
+            },
+            weight: 271.6,
+          },
+          {
+            name: "Box_082",
+            dimensions: {
+              w: 5,
+              h: 2,
+              d: 2,
+            },
+            weight: 109.8,
+          },
+          {
+            name: "Box_018",
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 2,
+            },
+            weight: 31.2,
+          },
+          {
+            name: "Box_020",
+            dimensions: {
+              w: 2,
+              h: 3,
+              d: 3,
+            },
+            weight: 31.9,
+          },
+          {
+            name: "Box_024",
+            dimensions: {
+              w: 2,
+              h: 3,
+              d: 3,
+            },
+            weight: 31.0,
+          },
+          {
+            name: "Box_044",
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 3,
+            },
+            weight: 39.5,
+          },
+          {
+            name: "Box_092",
+            dimensions: {
+              w: 2,
+              h: 3,
+              d: 3,
+            },
+            weight: 41.9,
+          },
+          {
+            name: "Box_118",
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 2,
+            },
+            weight: 40.2,
+          },
+          {
+            name: "Box_119",
+            dimensions: {
+              w: 2,
+              h: 3,
+              d: 3,
+            },
+            weight: 41.7,
+          },
+          {
+            name: "Box_137",
+            dimensions: {
+              w: 3,
+              h: 3,
+              d: 2,
+            },
+            weight: 145.8,
+          },
+          {
+            name: "Box_140",
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 3,
+            },
+            weight: 201.3,
+          },
+          {
+            name: "Box_088",
+            dimensions: {
+              w: 4,
+              h: 2,
+              d: 2,
+            },
+            weight: 77.9,
+          },
+          {
+            name: "Box_116",
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 2,
+            },
+            weight: 92.2,
+          },
+          {
+            name: "Box_132",
+            dimensions: {
+              w: 4,
+              h: 2,
+              d: 2,
+            },
+            weight: 157.9,
+          },
+          {
+            name: "Box_138",
+            dimensions: {
+              w: 2,
+              h: 4,
+              d: 2,
+            },
+            weight: 64.5,
+          },
+          {
+            name: "Box_016",
+            dimensions: {
+              w: 2,
+              h: 3,
+              d: 2,
+            },
+            weight: 21.6,
+          },
+          {
+            name: "Box_035",
+            dimensions: {
+              w: 2,
+              h: 2,
+              d: 3,
+            },
+            weight: 55.1,
+          },
+          {
+            name: "Box_057",
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 2,
+            },
+            weight: 24.1,
+          },
+          {
+            name: "Box_063",
+            dimensions: {
+              w: 2,
+              h: 2,
+              d: 3,
+            },
+            weight: 23.4,
+          },
+          {
+            name: "Box_070",
+            dimensions: {
+              w: 2,
+              h: 3,
+              d: 2,
+            },
+            weight: 51.7,
+          },
+          {
+            name: "Box_071",
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 2,
+            },
+            weight: 54.1,
+          },
+          {
+            name: "Box_075",
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 2,
+            },
+            weight: 21.3,
+          },
+          {
+            name: "Box_077",
+            dimensions: {
+              w: 2,
+              h: 3,
+              d: 2,
+            },
+            weight: 62.3,
+          },
+          {
+            name: "Box_084",
+            dimensions: {
+              w: 3,
+              h: 2,
+              d: 2,
+            },
+            weight: 21.3,
+          },
+          {
+            name: "Box_147",
+            dimensions: {
+              w: 2,
+              h: 2,
+              d: 2,
+            },
+            weight: 35.0,
+          },
+          {
+            name: "Box_148",
+            dimensions: {
+              w: 2,
+              h: 2,
+              d: 2,
+            },
+            weight: 34.6,
+          },
+        ],
+      };
+
+      // --- CANVAS RENDERING CORE ---
+      const canvas = document.getElementById("isometricCanvas");
+      const ctx = canvas.getContext("2d");
+
+      const statEfficiency = document.getElementById("statEfficiency");
+      const statCount = document.getElementById("statCount");
+      const statVolume = document.getElementById("statVolume");
+      const statWeight = document.getElementById("statWeight");
+
+      const stepSlider = document.getElementById("stepSlider");
+      const stepCounter = document.getElementById("stepCounter");
+      const btnPrev = document.getElementById("btnPrev");
+      const btnNext = document.getElementById("btnNext");
+      const btnPlay = document.getElementById("btnPlay");
+
+      const cameraAngleSlider = document.getElementById("cameraAngleSlider");
+      const angleValue = document.getElementById("angleValue");
+      const opacitySlider = document.getElementById("opacitySlider");
+      const itemList = document.getElementById("itemList");
+      const canvasTooltip = document.getElementById("canvasTooltip");
+
+      // State variables
+      let currentStep = packingData.packed_items.length;
+      let cameraAngle = 45; // degrees
+      let opacity = 0.85;
+      let isPlaying = false;
+      let playInterval = null;
+
+      // Zoom and Dragging state
+      let zoom = 20;
+      let offsetX = canvas.width / 2;
+      let offsetY = canvas.height / 2 + 50;
+      let isDragging = false;
+      let dragStartX, dragStartY;
+
+      // Container dimensions
+      const W = packingData.container_dimensions.W;
+      const H = packingData.container_dimensions.H;
+      const D = packingData.container_dimensions.D;
+
+      // Colors palette (Hsl based for lighting effects)
+      const itemColors = [];
+      function generateColors(count) {
+        for (let i = 0; i < count; i++) {
+          // Generate pleasing distinct colors
+          const hue = (i * 137.5) % 360;
+          itemColors.push({
+            base: `hsl(${hue}, 65%, 55%)`,
+            top: `hsl(${hue}, 70%, 65%)`,
+            left: `hsl(${hue}, 55%, 45%)`,
+            right: `hsl(${hue}, 60%, 50%)`,
+          });
+        }
+      }
+      generateColors(Math.max(100, packingData.packed_items.length));
+
+      // Set up controls bounds
+      stepSlider.max = packingData.packed_items.length;
+      stepSlider.value = currentStep;
+
+      // --- 3D GEOMETRY PROJECTOR ---
+      function project(x, y, z, angleRad) {
+        // Isometric projection formula with flexible angle around Z-axis
+        // Rotate (x, y) around container center (W/2, H/2)
+        const cx = W / 2;
+        const cy = H / 2;
+        const rx =
+          (x - cx) * Math.cos(angleRad) - (y - cy) * Math.sin(angleRad);
+        const ry =
+          (x - cx) * Math.sin(angleRad) + (y - cy) * Math.cos(angleRad);
+
+        // Apply standard isometric projection to rotated coordinates
+        const cos30 = 0.866;
+        const sin30 = 0.5;
+
+        const screenX = offsetX + (rx - ry) * cos30 * zoom;
+        const screenY = offsetY + (rx + ry) * sin30 * zoom - z * zoom;
+        return { x: screenX, y: screenY };
+      }
+
+      // --- PAINTER'S ALGORITHM (DEPTH SORT) ---
+      function sortPackedItems(items, angleRad) {
+        // To render items correctly from back to front:
+        // Calculate a depth coordinate for each item based on the camera viewpoint angle.
+        // When camera is at angle theta:
+        // Projection direction vector is d = (-cos(theta), -sin(theta), -constant) or similar.
+        // Simply put, we can project the center point of each box onto the camera view direction.
+
+        const cosA = Math.cos(angleRad);
+        const sinA = Math.sin(angleRad);
+
+        return items
+          .map((item, idx) => {
+            // Center of the item in 3D
+            const cx = item.position.x + item.dimensions.w / 2;
+            const cy = item.position.y + item.dimensions.h / 2;
+            const cz = item.position.z + item.dimensions.d / 2;
+
+            // Rotate center
+            const rx = (cx - W / 2) * cosA - (cy - H / 2) * sinA;
+            const ry = (cx - W / 2) * sinA + (cy - H / 2) * cosA;
+
+            // Depth: larger ry + rx means closer to viewer, smaller means further back.
+            // We also account for Z: higher boxes should be drawn after lower ones if they overlap,
+            // but standard Z-ordering works well.
+            const depth = ry + rx * 0.1 + cz * 0.05;
+
+            return { item, idx, depth };
+          })
+          .sort((a, b) => a.depth - b.depth);
+      }
+
+      // --- DRAW CUBE FACE ---
+      function drawFace(p1, p2, p3, p4, color, strokeColor = "#282c34") {
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.lineTo(p3.x, p3.y);
+        ctx.lineTo(p4.x, p4.y);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        if (strokeColor) {
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+      }
+
+      // --- DRAW CUBIC ITEM ---
+      function drawItem(
+        x,
+        y,
+        z,
+        w,
+        h,
+        d,
+        colors,
+        opacityValue,
+        isCurrent = false,
+      ) {
+        const angleRad = (cameraAngle * Math.PI) / 180;
+
+        // 8 vertices of the cuboid
+        const v0 = project(x, y, z, angleRad); // Back-Left-Bottom
+        const v1 = project(x + w, y, z, angleRad); // Front-Left-Bottom
+        const v2 = project(x + w, y + h, z, angleRad); // Front-Right-Bottom
+        const v3 = project(x, y + h, z, angleRad); // Back-Right-Bottom
+
+        const v4 = project(x, y, z + d, angleRad); // Back-Left-Top
+        const v5 = project(x + w, y, z + d, angleRad); // Front-Left-Top
+        const v6 = project(x + w, y + h, z + d, angleRad); // Front-Right-Top
+        const v7 = project(x, y + h, z + d, angleRad); // Back-Right-Top
+
+        // Determine active colors
+        let cTop = colors.top;
+        let cLeft = colors.left;
+        let cRight = colors.right;
+
+        if (isCurrent) {
+          // Highlight the current step item in flashing red/orange
+          cTop = "#ff8a80";
+          cLeft = "#ff5252";
+          cRight = "#ff1744";
+        }
+
+        // Inject transparency
+        ctx.save();
+        ctx.globalAlpha = opacityValue;
+
+        // Depending on camera angle, some faces are visible.
+        // In standard axonometric view looking from positive X/Y:
+        // - Top face (v4-v5-v6-v7) is always visible from top.
+        // - Front-Left face (v1-v2-v6-v5)
+        // - Front-Right face (v2-v3-v7-v6) or Left/Right depending on rotation.
+        // Drawing faces back-to-front: Bottom, Back, Left, Right, Front, Top
+
+        // For general rotation, we can draw all 3 visible faces:
+        // 1. Left face (v0-v1-v5-v4 or v1-v2-v6-v5)
+        // To make it simple and bulletproof, we render the standard three faces (Top, Left-ish, Right-ish)
+        // Left Face:
+        drawFace(v1, v2, v6, v5, cLeft);
+        // Right Face:
+        drawFace(v2, v3, v7, v6, cRight);
+        // Top Face:
+        drawFace(v4, v5, v6, v7, cTop);
+
+        ctx.restore();
+      }
+
+      // --- DRAW CONTAINER WIREFRAME ---
+      function drawContainer() {
+        const angleRad = (cameraAngle * Math.PI) / 180;
+
+        // Container 8 corners
+        const v0 = project(0, 0, 0, angleRad);
+        const v1 = project(W, 0, 0, angleRad);
+        const v2 = project(W, H, 0, angleRad);
+        const v3 = project(0, H, 0, angleRad);
+
+        const v4 = project(0, 0, D, angleRad);
+        const v5 = project(W, 0, D, angleRad);
+        const v6 = project(W, H, D, angleRad);
+        const v7 = project(0, H, D, angleRad);
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(97, 175, 239, 0.4)";
+        ctx.lineWidth = 1.5;
+
+        // Draw floor
+        ctx.beginPath();
+        ctx.moveTo(v0.x, v0.y);
+        ctx.lineTo(v1.x, v1.y);
+        ctx.lineTo(v2.x, v2.y);
+        ctx.lineTo(v3.x, v3.y);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(97, 175, 239, 0.05)";
+        ctx.fill();
+
+        // Draw roof
+        ctx.beginPath();
+        ctx.moveTo(v4.x, v4.y);
+        ctx.lineTo(v5.x, v5.y);
+        ctx.lineTo(v6.x, v6.y);
+        ctx.lineTo(v7.x, v7.y);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Draw vertical pillars
+        ctx.beginPath();
+        ctx.moveTo(v0.x, v0.y);
+        ctx.lineTo(v4.x, v4.y);
+        ctx.moveTo(v1.x, v1.y);
+        ctx.lineTo(v5.x, v5.y);
+        ctx.moveTo(v2.x, v2.y);
+        ctx.lineTo(v6.x, v6.y);
+        ctx.moveTo(v3.x, v3.y);
+        ctx.lineTo(v7.x, v7.y);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // --- RENDER MAIN SCENE ---
+      function renderScene() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Draw back container lines first (or just draw complete container as guide)
+        drawContainer();
+
+        // 2. Filter items up to current active step
+        const visibleItems = packingData.packed_items.slice(0, currentStep);
+
+        // 3. Sort visible items using Painter's depth sort
+        const angleRad = (cameraAngle * Math.PI) / 180;
+        const sortedRecords = sortPackedItems(visibleItems, angleRad);
+
+        // 4. Draw items from back to front
+        sortedRecords.forEach((record, drawIdx) => {
+          const pi = record.item;
+          const origIdx = record.idx;
+          const isCurrent = origIdx === currentStep - 1;
+
+          drawItem(
+            pi.position.x,
+            pi.position.y,
+            pi.position.z,
+            pi.dimensions.w,
+            pi.dimensions.h,
+            pi.dimensions.d,
+            itemColors[origIdx],
+            opacity,
+            isCurrent,
+          );
+        });
+
+        // 5. Update stats text
+        updateStats();
+      }
+
+      // --- UPDATE STATS PANEL ---
+      function updateStats() {
+        // Calculate active stats up to currentStep
+        const activeItems = packingData.packed_items.slice(0, currentStep);
+        const activeVolume = activeItems.reduce(
+          (acc, it) =>
+            acc + it.dimensions.w * it.dimensions.h * it.dimensions.d,
+          0,
+        );
+        const containerVolume = W * H * D;
+        const effPercentage =
+          containerVolume > 0 ? (activeVolume / containerVolume) * 100 : 0;
+        const activeWeight = activeItems.reduce(
+          (acc, it) => acc + it.weight,
+          0,
+        );
+
+        statEfficiency.innerText = `${effPercentage.toFixed(1)}%`;
+        statCount.innerText = `${currentStep} / ${packingData.packed_items.length}`;
+        statVolume.innerText = `${activeVolume.toFixed(1)} м³`;
+        statWeight.innerText = `${activeWeight.toFixed(0)} кг`;
+
+        stepCounter.innerText = `${currentStep} / ${packingData.packed_items.length}`;
+        stepSlider.value = currentStep;
+
+        // Highlight item list rows
+        const rows = itemList.getElementsByClassName("item-row");
+        for (let i = 0; i < rows.length; i++) {
+          if (i < currentStep) {
+            rows[i].style.opacity = "1.0";
+            rows[i].style.backgroundColor =
+              i === currentStep - 1 ? "#2b303c" : "transparent";
+            rows[i].style.fontWeight =
+              i === currentStep - 1 ? "bold" : "normal";
+          } else {
+            rows[i].style.opacity = "0.35";
+            rows[i].style.backgroundColor = "transparent";
+            rows[i].style.fontWeight = "normal";
+          }
+        }
+      }
+
+      // --- RENDER DYNAMIC LIST ---
+      function populateItemList() {
+        itemList.innerHTML = "";
+
+        // Packed items
+        packingData.packed_items.forEach((pi, idx) => {
+          const row = document.createElement("div");
+          row.className = "item-row";
+          row.innerHTML = `
+                    <span style="color: ${itemColors[idx].top}">■ ${pi.name}</span>
+                    <span>${pi.dimensions.w}x${pi.dimensions.h}x${pi.dimensions.d}</span>
+                    <span class="badge badge-fit">OK</span>
+                `;
+          row.onclick = () => {
+            currentStep = idx + 1;
+            renderScene();
+          };
+          itemList.appendChild(row);
+        });
+
+        // Unpacked items
+        if (packingData.unpacked_items) {
+          packingData.unpacked_items.forEach((ui) => {
+            const row = document.createElement("div");
+            row.className = "item-row";
+            row.style.color = "#c62828";
+            row.innerHTML = `
+                        <span>⚠️ ${ui.name}</span>
+                        <span>${ui.dimensions.w}x${ui.dimensions.h}x${ui.dimensions.d}</span>
+                        <span class="badge badge-unfit">Unfit</span>
+                    `;
+            itemList.appendChild(row);
+          });
+        }
+      }
+
+      // --- EVENT LISTENERS ---
+      // Slider inputs
+      stepSlider.oninput = (e) => {
+        currentStep = parseInt(e.target.value);
+        renderScene();
+      };
+
+      cameraAngleSlider.oninput = (e) => {
+        cameraAngle = parseInt(e.target.value);
+        angleValue.innerText = `${cameraAngle}°`;
+        renderScene();
+      };
+
+      opacitySlider.oninput = (e) => {
+        opacity = parseInt(e.target.value) / 100;
+        renderScene();
+      };
+
+      // Prev / Next step buttons
+      btnPrev.onclick = () => {
+        if (currentStep > 0) {
+          currentStep--;
+          renderScene();
+        }
+      };
+
+      btnNext.onclick = () => {
+        if (currentStep < packingData.packed_items.length) {
+          currentStep++;
+          renderScene();
+        }
+      };
+
+      // Play auto-build animation
+      btnPlay.onclick = () => {
+        if (isPlaying) {
+          clearInterval(playInterval);
+          btnPlay.innerText = "▶ Авто-сборка";
+          btnPlay.style.backgroundColor = "#3e88e3";
+          isPlaying = false;
+        } else {
+          if (currentStep === packingData.packed_items.length) {
+            currentStep = 0; // reset to beginning
+          }
+          btnPlay.innerText = "⏸ Пауза";
+          btnPlay.style.backgroundColor = "#e06c75";
+          isPlaying = true;
+
+          playInterval = setInterval(() => {
+            if (currentStep < packingData.packed_items.length) {
+              currentStep++;
+              renderScene();
+            } else {
+              clearInterval(playInterval);
+              btnPlay.innerText = "▶ Авто-сборка";
+              btnPlay.style.backgroundColor = "#3e88e3";
+              isPlaying = false;
+            }
+          }, 800);
+        }
+      };
+
+      // Mouse Drag to Rotate & Zoom (interactive canvas)
+      canvas.onmousedown = (e) => {
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+      };
+
+      window.onmouseup = () => {
+        isDragging = false;
+      };
+
+      canvas.onmousemove = (e) => {
+        if (isDragging) {
+          const dx = e.clientX - dragStartX;
+          const dy = e.clientY - dragStartY;
+
+          cameraAngle = (cameraAngle - dx * 0.5) % 360;
+          if (cameraAngle < 0) cameraAngle += 360;
+
+          cameraAngleSlider.value = Math.round(cameraAngle);
+          angleValue.innerText = `${Math.round(cameraAngle)}°`;
+
+          offsetY += dy * 0.5; // simple pan up/down
+
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          renderScene();
+        }
+      };
+
+      // Mouse wheel to zoom
+      canvas.onwheel = (e) => {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          zoom = Math.min(50, zoom + 1.5);
+        } else {
+          zoom = Math.max(5, zoom - 1.5);
+        }
+        renderScene();
+      };
+
+      // --- INIT ---
+      populateItemList();
+      renderScene();
+    </script>
+    <script>
+      (function () {
+        function c() {
+          var b = a.contentDocument || a.contentWindow.document;
+          if (b) {
+            var d = b.createElement("script");
+            d.innerHTML =
+              "window.__CF$cv$params={r:'a0ac0f813a698f3d',t:'MTc4MTMwMDkxNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
+            b.getElementsByTagName("head")[0].appendChild(d);
+          }
+        }
+        if (document.body) {
+          var a = document.createElement("iframe");
+          a.height = 1;
+          a.width = 1;
+          a.style.position = "absolute";
+          a.style.top = 0;
+          a.style.left = 0;
+          a.style.border = "none";
+          a.style.visibility = "hidden";
+          document.body.appendChild(a);
+          if ("loading" !== document.readyState) c();
+          else if (window.addEventListener)
+            document.addEventListener("DOMContentLoaded", c);
+          else {
+            var e = document.onreadystatechange || function () {};
+            document.onreadystatechange = function (b) {
+              e(b);
+              "loading" !== document.readyState &&
+                ((document.onreadystatechange = e), c());
+            };
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>
