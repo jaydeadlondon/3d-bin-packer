@@ -18,12 +18,6 @@ This project features a high-performance optimization backend in Python and an i
 ├── tests/
 │   ├── test_geometry.py    # Unit tests for 3D geometric intersections and boundary checks
 │   └── test_packer.py      # Unit tests for packing logic and physical support checks
-├── commits/                # Progressive step-by-step development history (checkpoints for Git)
-│   ├── commit_1_init/      # Step 1: Geometry structures & unit tests initialization
-│   ├── commit_2_algorithms/# Step 2: Extreme Points algorithm & physical gravity checks
-│   ├── commit_3_performance/# Step 3: Optimization & profiling (60x performance boost!)
-│   ├── commit_4_visualizer/# Step 4: Isometric 3D visualizer development
-│   └── commit_5_final/     # Step 5: CLI integration & pipeline assembly
 └── result.html             # The generated interactive isometric 3D report
 ```
 
